@@ -34,8 +34,8 @@ jobs:
     - name: Build
       run: go build -v ./...
 
-    - name: Test
-      run: go test -v ./...
+#    - name: Test
+#      run: go test -v ./...
 
     - name: Docker build
       run: docker build --tag ${{ env.SERVICE_NAME }}-${{ env.TAG }} .
