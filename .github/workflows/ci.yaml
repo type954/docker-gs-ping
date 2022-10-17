@@ -8,17 +8,23 @@ on:
       - 'v*'
   pull_request:
     branches:
-      - 'master'
+      - 'main'
 
 env:
+  SERVICE_NAME: "docker-gs-ping"
+  REGISTRY_NAME: "type954"
+  #HELM_REPO: ${{ env.SERVICE_NAME }}-helm-${{ env.TAG }}
   IMAGE_NAME: ${{ github.repository }}
+  TAG: "dev"
+  #COMMIT_ID: ${{ github.sha:0:7 }}
       
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-
-    - uses: actions/checkout@v3
+    
+    - name: checkout github repo
+      uses: actions/checkout@v3
 
     - name: Set up Go
       uses: actions/setup-go@v3
@@ -28,20 +34,14 @@ jobs:
     - name: Build
       run: go build -v ./...
 
-#    - name: Test
-#      run: go test -v ./...
+    - name: Test
+      run: go test -v ./...
 
-    - name: Docker meta
-      id: meta
-      uses: docker/metadata-action@v4
-      with:
-        images: |
-          ${{ env.IMAGE_NAME }}
-        tags: |
-          type=semver,pattern={{version}}
+    - name: Docker build
+      run: docker build --tag ${{ env.SERVICE_NAME }}-${{ env.TAG }} .
 
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v2
+    - name: Docker tag
+      run: docker image tag ${{ env.SERVICE_NAME }}-${{ env.TAG }}:latest ${{ env.REGISTRY_NAME }}/${{ env.SERVICE_NAME }}-${{ env.TAG }}:${GITHUB_SHA::7}
 
     - name: Login to DockerHub
       if: github.event_name != 'pull_request'
@@ -49,23 +49,33 @@ jobs:
       with:
         username: ${{ secrets.DOCKER_HUB_USERNAME }}
         password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
-          
-    - name: Build and push
-      uses: docker/build-push-action@v3
+
+    - name: Docker push
+      run: docker push ${{ env.REGISTRY_NAME }}/${{ env.SERVICE_NAME }}-${{ env.TAG }}:${GITHUB_SHA::7}
+      
+    - name: Checkout github helm chart
+      uses: actions/checkout@v3
       with:
-        context: .
-        push: ${{ github.event_name != 'pull_request' }}
-        tags: ${{ steps.meta.outputs.tags }}
-        #labels: ${{ steps.meta.outputs.labels }}
-        
-        
-    - name: Update Image Version in the related HelmChart values.yaml
-      uses: fjogeleit/yaml-update-action@main
-      with:
-        valueFile: 'type954/${{ env.IMAGE_NAME }}-helm/values.yaml'
-        propertyPath: 'deployment.image.tag'
-        value: ${{ steps.image.outputs.version }}
-        branch: deployment/${{ steps.image.outputs.version }}
-        targetBranch: development
-        createPR: true
-        message: 'Update Image Version to ${{ steps.image.outputs.version }}'
+        repository: type954/${{ env.SERVICE_NAME }}-helm
+        token: ${{ secrets.GH_TOKEN }} # `GH_PAT` is a secret that contains your PAT
+        #path: are-helm
+
+    - name: values.yaml update
+      run: |
+        #sed -i "" "/^\([[:space:]]*tag: \).*/s//\1CCCCC/" $2 values.yaml
+        sed -i 's/^\(\s*tag\s*:\s*\).*/\1'${GITHUB_SHA::7}'/' values.yaml
+    - name: git add
+      run: |
+        git add ./values.yaml
+        git config --global user.email "you@example.com"
+        git config --global user.name "Your Name"
+
+    
+    - name: git status
+      run: git status
+    
+    - name: git commit
+      run: git commit -m "Pushed ${{ env.SERVICE_NAME }} Helm Chart:${GITHUB_SHA::7}"
+
+    - name: git push
+      run: git push
