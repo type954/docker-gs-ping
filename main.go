@@ -19,7 +19,7 @@ func main() {
 		return c.HTML(http.StatusOK, "web1.b.com, Hello World!")
 	})
 
-	e.GET("/ping", func(c echo.Context) error {
+	e.GET("/admin", func(c echo.Context) error {
 		return c.JSON(http.StatusOK, "web1.b.com/admin, Hello")
 	})
 
