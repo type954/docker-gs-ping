@@ -20,7 +20,7 @@ func main() {
 	})
 
 	e.GET("/admin", func(c echo.Context) error {
-		return c.JSON(http.StatusOK, "web1.b.com/admin, Hello!")
+		return c.JSON(http.StatusOK, "web1.b.com/admin, Hello!!!!")
 	})
 
 	httpPort := os.Getenv("HTTP_PORT")
